@@ -1,0 +1,90 @@
+Intially loading the cleaned dataset to Mysql
+Create table in mysql : 
+CREATE TABLE h1b(
+s_no integer,
+case_status LONGTEXT,
+employer_name LONGTEXT,
+soc_name LONGTEXT,
+job_title LONGTEXT,
+full_time_position LONGTEXT,
+prevailing_wage integer, 
+year LONGTEXT,
+worksite LONGTEXT,
+longitute Double, 
+latitute Double);
+
+Initially loading data in created table from local to mysql
+#mysql -u hive -p --local_infile=1 PDA -e "LOAD DATA LOCAL INFILE '/home/hduser/h1b/dataset/h1b.csv' INTO TABLE h1b FIELDS TERMINATED BY ','"
+Validating the loaded dataset 
+#SELECT COUNT(*) FROM h1b;
+#SELECT * FROM h1b limit 5;
+Note : Hive – one of the user in mysql database having full access to all databses.
+ 
+
+
+
+ 
+ 
+Data ingestion – Sqoop 
+
+Importing the data from mysql to hdfs using sqoop. 
+
+# sqoop import --connect jdbc:mysql://127.0.0.1/PDA --username hive --password admin --table h1b --target-dir /h1b -m 1
+(note: mysql db - PDA , mysql tbl – H1b, destination dir in hdfs – h1b)
+
+Changing the sqoop processed file into csv to load inside hive.
+# hdfs dfs -cp /h1b/part-m-00000 /h1b/h1b.csv
+
+Creating table in hive 
+Hive: 
+
+# CREATE TABLE varun.h1b(s_no int,case_status string,employer_name string, soc_name string, job_title string, full_time_position string,prevailing_wage int,year string, worksite string, longitute double, latitute double )
+ROW FORMAT SERDE 'org.apache.hadoop.hive.serde2.OpenCSVSerde'
+WITH SERDEPROPERTIES (
+"separatorChar" = ",",
+"quoteChar" = "\""
+)
+stored as textfile 
+tblproperties ("skip.header.line.count"="1")
+;
+load data inpath '/h1b/h1b.csv' overwrite into table h1b; 
+
+
+
+
+
+
+
+
+
+
+
+Hive Query – 1: 
+
+
+Top organization in United States who filed most number of h1b visa petition for the year 2016 & 2015.
+
+Note: output of hive query redirected to local file system and shown top 5 employers for the visualization purpose.   
+
+###     ###
+
+INSERT OVERWRITE LOCAL DIRECTORY '/tmp/hive_output1'    #Output local path
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY '\t'
+STORED AS TEXTFILE
+
+select h1b.employer_name,count(h1b.employer_name) as no_of_applications,h1b.year from h1b where h1b.year = '2015' group by h1b.employer_name,h1b.year order by no_of_applications desc limit 20;
+
+###     ###
+
+
+INSERT OVERWRITE LOCAL DIRECTORY '/tmp/hive_output2'
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY '\t'
+STORED AS TEXTFILE
+
+select h1b.employer_name,count(h1b.employer_name) as no_of_applications,h1b.year from h1b where h1b.year = '2016' group by h1b.employer_name,h1b.year order by no_of_applications desc limit 20;
+
+
+
+###     ###
